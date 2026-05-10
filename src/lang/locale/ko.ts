@@ -59,8 +59,8 @@ const lang: Partial<Lang> = {
     '이 템플릿은 칸반 카드에서 새 노트를 만들 때 사용됩니다.',
   'No template': '템플릿 없음',
   'Note folder': '노트 폴더',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
-    '카드에서 만든 노트는 이 폴더에 저장됩니다. 만약 비어있다면, 기본 위치에 저장됩니다.',
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
+    '카드에서 만든 노트는 이 폴더에 저장됩니다. 비워두면 현재 칸반 보드와 같은 폴더에 저장됩니다.',
   'Default folder': '기본 폴더',
   'List width': '목록 너비',
   'Enter a number to set the list width in pixels.': '픽셀 단위로 목록의 너비를 설정합니다.',

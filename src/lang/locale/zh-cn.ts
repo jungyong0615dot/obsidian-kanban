@@ -58,7 +58,7 @@ const lang: Partial<Lang> = {
     '从看板卡片创建新笔记时会使用该模板。',
   'No template': '没有模板',
   'Note folder': '笔记存放位置',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
     '从看板卡片创建的笔记会放置到该文件夹中。如果为空，笔记将会放置到 Obsidian 的默认文件存放位置。',
   'Default folder': '默认文件夹',
   'List width': '列宽',

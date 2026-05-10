@@ -24,7 +24,6 @@ import { archiveString, completeString, settingsToCodeblock } from '../common';
 import { DateNode, FileNode, TimeNode, ValueNode } from '../extensions/types';
 import {
   ContentBoundary,
-  getNextOfType,
   getNodeContentBoundary,
   getPrevSibling,
   getStringFromBoundary,
@@ -47,6 +46,8 @@ import { parseFragment } from '../parseMarkdown';
 interface TaskItem extends ListItem {
   checkChar?: string;
 }
+
+const laneArchiveString = '%% kanban:archive %%';
 
 export function listItemToItemData(stateManager: StateManager, md: string, item: TaskItem) {
   const moveTags = stateManager.getSetting('move-tags');
@@ -237,6 +238,25 @@ function isArchiveLane(child: Content, children: Content[], currentIndex: number
   return prev && prev.type === 'thematicBreak';
 }
 
+function isLaneArchiveMarker(child: Content) {
+  return child.type === 'paragraph' && toString(child).trim() === laneArchiveString;
+}
+
+function getLaneSectionChildren(children: Content[], currentIndex: number) {
+  const sectionChildren: Content[] = [];
+
+  for (let i = currentIndex + 1, len = children.length; i < len; i++) {
+    const child = children[i];
+    if (child.type === 'heading' && (child as any).depth === 2) {
+      break;
+    }
+
+    sectionChildren.push(child);
+  }
+
+  return sectionChildren;
+}
+
 export function astToUnhydratedBoard(
   stateManager: StateManager,
   settings: KanbanSettings,
@@ -247,30 +267,46 @@ export function astToUnhydratedBoard(
   const lanes: Lane[] = [];
   const archive: Item[] = [];
   root.children.forEach((child, index) => {
-    if (child.type === 'heading') {
+    if (child.type === 'heading' && (child as any).depth === 2) {
       const isArchive = isArchiveLane(child, root.children, index);
       const headingBoundary = getNodeContentBoundary(child as Parent);
       const title = getStringFromBoundary(md, headingBoundary);
+      const sectionChildren = getLaneSectionChildren(root.children, index);
 
       let shouldMarkItemsComplete = false;
+      let list: List = null;
+      let archiveList: List = null;
+      let didHitArchiveMarker = false;
 
-      const list = getNextOfType(root.children, index, 'list', (child) => {
-        if (child.type === 'heading') return false;
-
-        if (child.type === 'paragraph') {
-          const childStr = toString(child);
+      sectionChildren.forEach((sectionChild) => {
+        if (sectionChild.type === 'paragraph') {
+          const childStr = toString(sectionChild);
 
           if (childStr.startsWith('%% kanban:settings')) {
-            return false;
+            return;
           }
 
           if (childStr === t('Complete')) {
             shouldMarkItemsComplete = true;
-            return true;
+            return;
           }
         }
 
-        return true;
+        if (isLaneArchiveMarker(sectionChild)) {
+          didHitArchiveMarker = true;
+          return;
+        }
+
+        if (sectionChild.type === 'list') {
+          if (didHitArchiveMarker && !archiveList) {
+            archiveList = sectionChild as List;
+            return;
+          }
+
+          if (!list) {
+            list = sectionChild as List;
+          }
+        }
       });
 
       if (isArchive && list) {
@@ -294,6 +330,7 @@ export function astToUnhydratedBoard(
           id: generateInstanceId(),
           data: {
             ...parseLaneTitle(title),
+            archive: [],
             shouldMarkItemsComplete,
           },
         });
@@ -311,6 +348,15 @@ export function astToUnhydratedBoard(
           id: generateInstanceId(),
           data: {
             ...parseLaneTitle(title),
+            archive:
+              archiveList?.children.map((listItem) => {
+                const data = listItemToItemData(stateManager, md, listItem);
+                return {
+                  ...ItemTemplate,
+                  id: generateInstanceId(),
+                  data,
+                };
+              }) || [],
             shouldMarkItemsComplete,
           },
         });
@@ -390,8 +436,22 @@ export function reparseBoard(stateManager: StateManager, board: Board) {
                 return updateItemContent(stateManager, item, item.data.titleRaw);
               }),
             },
+            data: {
+              archive: {
+                $set: lane.data.archive.map((item) => {
+                  return updateItemContent(stateManager, item, item.data.titleRaw);
+                }),
+              },
+            },
           });
         }),
+      },
+      data: {
+        archive: {
+          $set: board.data.archive.map((item) => {
+            return updateItemContent(stateManager, item, item.data.titleRaw);
+          }),
+        },
       },
     });
   } catch (e) {
@@ -406,6 +466,7 @@ function itemToMd(item: Item) {
 
 function laneToMd(lane: Lane) {
   const lines: string[] = [];
+  const archive = lane.data.archive || [];
 
   lines.push(`## ${replaceNewLines(laneTitleWithMaxItems(lane.data.title, lane.data.maxItems))}`);
 
@@ -418,6 +479,15 @@ function laneToMd(lane: Lane) {
   lane.children.forEach((item) => {
     lines.push(itemToMd(item));
   });
+
+  if (archive.length) {
+    lines.push('');
+    lines.push(laneArchiveString);
+    lines.push('');
+    archive.forEach((item) => {
+      lines.push(itemToMd(item));
+    });
+  }
 
   lines.push('');
   lines.push('');

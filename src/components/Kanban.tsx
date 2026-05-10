@@ -65,6 +65,16 @@ export const Kanban = ({ view, stateManager }: KanbanProps) => {
   const dateColors = stateManager.useSetting('date-colors');
   const tagColors = stateManager.useSetting('tag-colors');
   const boardView = view.useViewState(frontmatterKey);
+  const archivedItemCount = useMemo(() => {
+    if (!boardData) {
+      return 0;
+    }
+
+    return (
+      boardData.data.archive.length +
+      boardData.children.reduce((total, lane) => total + (lane.data.archive?.length || 0), 0)
+    );
+  }, [boardData]);
 
   const closeLaneForm = useCallback(() => {
     if (boardData?.children.length > 0) {
@@ -150,18 +160,40 @@ export const Kanban = ({ view, stateManager }: KanbanProps) => {
       return;
     }
 
-    if (typeof maxArchiveLength === 'number' && boardData?.data.archive.length > maxArchiveLength) {
-      stateManager.setState((board) =>
-        update(board, {
+    if (typeof maxArchiveLength === 'number' && archivedItemCount > maxArchiveLength) {
+      stateManager.setState((board) => {
+        let toTrim = archivedItemCount - maxArchiveLength;
+        const globalTrimCount = Math.min(toTrim, board.data.archive.length);
+        toTrim -= globalTrimCount;
+
+        return update(board, {
           data: {
             archive: {
-              $set: board.data.archive.slice(maxArchiveLength * -1),
+              $set: board.data.archive.slice(globalTrimCount),
             },
           },
-        })
-      );
+          children: {
+            $set: board.children.map((lane) => {
+              if (!toTrim || !lane.data.archive?.length) {
+                return lane;
+              }
+
+              const trimCount = Math.min(toTrim, lane.data.archive.length);
+              toTrim -= trimCount;
+
+              return update(lane, {
+                data: {
+                  archive: {
+                    $set: lane.data.archive.slice(trimCount),
+                  },
+                },
+              });
+            }),
+          },
+        });
+      });
     }
-  }, [boardData?.data.archive.length, maxArchiveLength]);
+  }, [archivedItemCount, maxArchiveLength]);
 
   const boardModifiers = useMemo(() => {
     return getBoardModifiers(view, stateManager);

@@ -20,6 +20,7 @@ import { ItemForm } from '../Item/ItemForm';
 import { KanbanContext, SearchContext, SortContext } from '../context';
 import { c, generateInstanceId } from '../helpers';
 import { DataTypes, EditState, EditingState, Item, Lane } from '../types';
+import { LaneArchive } from './LaneArchive';
 import { LaneHeader } from './LaneHeader';
 
 const laneAccepts = [DataTypes.Item];
@@ -209,6 +210,8 @@ function DraggableLaneRaw({
             {!search?.query && !isCollapsed && !shouldPrepend && (
               <ItemForm addItems={addItems} editState={editState} setEditState={setEditState} />
             )}
+
+            {!isCollapsed && <LaneArchive items={lane.data.archive || []} />}
           </CollapsedDropArea>
         </div>
       </div>

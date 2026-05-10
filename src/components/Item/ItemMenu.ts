@@ -70,7 +70,7 @@ export function useItemMenu({
 
               const targetFolder = newNoteFolder
                 ? (stateManager.app.vault.getAbstractFileByPath(newNoteFolder as string) as TFolder)
-                : stateManager.app.fileManager.getNewFileParent(stateManager.file.path);
+                : stateManager.file.parent || stateManager.app.vault.getRoot();
 
               const newFile = (await (stateManager.app.fileManager as any).createNewMarkdownFile(
                 targetFolder,

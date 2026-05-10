@@ -50,7 +50,7 @@ const lang: Partial<Lang> = {
     'Diese Vorlage wird beim Erstellen neuer Notizen aus Kanban-Karten verwendet.',
   'No template': 'Keine Vorlage',
   'Note folder': 'Notiz Ordner',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
     'Notizen, welche aus einer Kanban-Karte erstellt wurden, werden in diesem Ordner platziert. Falls leer, werden die Einstellungen des Vaults verwendet.',
   'Default folder': 'Standard Ordner',
   'Maximum number of archived cards': 'Maximale Anzahl archivierter Karten.',

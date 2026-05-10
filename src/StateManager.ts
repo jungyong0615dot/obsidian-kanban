@@ -365,7 +365,6 @@ export class StateManager {
   async archiveCompletedCards() {
     const board = this.state;
 
-    const archived: Item[] = [];
     const shouldAppendArchiveDate = !!this.getSetting('archive-with-date');
     const archiveDateSeparator = this.getSetting('archive-date-separator');
     const archiveDateFormat = this.getSetting('archive-date-format');
@@ -386,16 +385,22 @@ export class StateManager {
     };
 
     const lanes = board.children.map((lane) => {
+      const laneArchived: Item[] = [];
       return update(lane, {
         children: {
           $set: lane.children.filter((item) => {
             const isComplete = item.data.checked && item.data.checkChar === getTaskStatusDone();
             if (lane.data.shouldMarkItemsComplete || isComplete) {
-              archived.push(item);
+              laneArchived.push(item);
             }
 
             return !isComplete && !lane.data.shouldMarkItemsComplete;
           }),
+        },
+        data: {
+          archive: {
+            $push: shouldAppendArchiveDate ? laneArchived.map((item) => appendArchiveDate(item)) : laneArchived,
+          },
         },
       });
     });
@@ -405,13 +410,6 @@ export class StateManager {
         update(board, {
           children: {
             $set: lanes,
-          },
-          data: {
-            archive: {
-              $push: shouldAppendArchiveDate
-                ? await Promise.all(archived.map((item) => appendArchiveDate(item)))
-                : archived,
-            },
           },
         })
       );

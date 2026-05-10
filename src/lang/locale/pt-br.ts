@@ -38,7 +38,7 @@ const lang: Partial<Lang> = {
     'Este modelo será usado quando uma nova nota Kanban for criada.',
   'No template': 'Sem modelo',
   'Note folder': 'Pasta de notas',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
     'As notas criadas pelos links dos cartões Kanban serão colocadas nesta pasta. Se estiver em branco, serão colocadas no local configurado como padrão deste cofre.',
   'Default folder': 'Pasta padrão',
   'Maximum number of archived cards': 'Quantidade máxima de cartões arquivados',

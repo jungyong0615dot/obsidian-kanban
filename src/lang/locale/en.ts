@@ -63,8 +63,8 @@ const en = {
     'This template will be used when creating new notes from Kanban cards.',
   'No template': 'No template',
   'Note folder': 'Note folder',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
-    'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.',
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
+    'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.',
   'Default folder': 'Default folder',
   'List width': 'List width',
   'Expand lists to full width in list view': 'Expand lists to full width in list view',

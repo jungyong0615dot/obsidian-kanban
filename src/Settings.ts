@@ -457,7 +457,7 @@ export class SettingsManager {
       .setName(t('Note folder'))
       .setDesc(
         t(
-          'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.'
+          'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.'
         )
       )
       .then(
@@ -1582,6 +1582,6 @@ export class KanbanSettingsTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.addClass(c('board-settings-modal'));
 
-    this.settingsManager.constructUI(containerEl, t('Kanban Plugin'), false);
+    this.settingsManager.constructUI(containerEl, 'Kanban_jy', false);
   }
 }

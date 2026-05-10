@@ -111,6 +111,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
               id: generateInstanceId(),
               children: [],
               data: {
+                archive: [],
                 title: '',
                 shouldMarkItemsComplete: false,
                 forceEditMode: true,
@@ -131,6 +132,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
               id: generateInstanceId(),
               children: [],
               data: {
+                archive: [],
                 title: '',
                 shouldMarkItemsComplete: false,
                 forceEditMode: true,

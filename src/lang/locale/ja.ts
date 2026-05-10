@@ -58,7 +58,7 @@ const lang: Partial<Lang> = {
     'このテンプレートはカンバンカードからノートを新規作成した際に使用されます。',
   'No template': 'テンプレートがありません',
   'Note folder': 'ノートフォルダ',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
     'カンバンカードから作成されたノートはこのフォルダ内に置かれます。ブランクの場合には、この保管庫のデフォルトロケーションに置かれます。',
   'Default folder': 'デフォルトフォルダ',
   'Maximum number of archived cards': 'アーカイブされたカードの最大数',

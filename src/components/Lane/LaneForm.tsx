@@ -35,6 +35,7 @@ export function LaneForm({ onNewLane, closeLaneForm }: LaneFormProps) {
         id: generateInstanceId(),
         children: [],
         data: {
+          archive: [],
           ...parseLaneTitle(title),
           shouldMarkItemsComplete: shouldMarkAsComplete,
         },

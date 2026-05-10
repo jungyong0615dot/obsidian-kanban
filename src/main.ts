@@ -339,10 +339,10 @@ export default class KanbanPlugin extends Plugin {
   async newKanban(folder?: TFolder) {
     const targetFolder = folder
       ? folder
-      : this.app.fileManager.getNewFileParent(app.workspace.getActiveFile()?.path || '');
+      : this.app.fileManager.getNewFileParent(this.app.workspace.getActiveFile()?.path || '');
 
     try {
-      const kanban: TFile = await (app.fileManager as any).createNewMarkdownFile(
+      const kanban: TFile = await (this.app.fileManager as any).createNewMarkdownFile(
         targetFolder,
         t('Untitled Kanban')
       );
@@ -517,10 +517,10 @@ export default class KanbanPlugin extends Plugin {
     );
 
     this.registerEvent(
-      app.vault.on('rename', (file, oldPath) => {
+      app.vault.on('rename', (file: TFile, oldPath: string) => {
         const kanbanLeaves = app.workspace.getLeavesOfType(kanbanViewType);
 
-        kanbanLeaves.forEach((leaf) => {
+        kanbanLeaves.forEach((leaf: WorkspaceLeaf) => {
           (leaf.view as KanbanView).handleRename(file.path, oldPath);
         });
       })
@@ -539,7 +539,7 @@ export default class KanbanPlugin extends Plugin {
     );
 
     this.registerEvent(
-      app.vault.on('modify', (file) => {
+      app.vault.on('modify', (file: TFile) => {
         if (file instanceof TFile) {
           notifyFileChange(file);
         }
@@ -547,7 +547,7 @@ export default class KanbanPlugin extends Plugin {
     );
 
     this.registerEvent(
-      app.metadataCache.on('changed', (file) => {
+      app.metadataCache.on('changed', (file: TFile) => {
         notifyFileChange(file);
       })
     );
@@ -640,7 +640,7 @@ export default class KanbanPlugin extends Plugin {
             .then(() => {
               this.setKanbanView(activeView.leaf);
             })
-            .catch((e) => console.error(e));
+            .catch((e: unknown) => console.error(e));
         }
       },
     });
@@ -789,7 +789,8 @@ export default class KanbanPlugin extends Plugin {
               self.kanbanFileModes[this.id || state.state.file] !== 'markdown'
             ) {
               // Then check for the kanban frontMatterKey
-              const cache = self.app.metadataCache.getCache(state.state.file);
+              const filePath = state.state.file as string;
+              const cache = self.app.metadataCache.getCache(filePath);
 
               if (cache?.frontmatter && cache.frontmatter[frontmatterKey]) {
                 // If we have it, force the view type to kanban
@@ -798,7 +799,7 @@ export default class KanbanPlugin extends Plugin {
                   type: kanbanViewType,
                 };
 
-                self.kanbanFileModes[state.state.file] = kanbanViewType;
+                self.kanbanFileModes[filePath] = kanbanViewType;
 
                 return next.apply(this, [newState, ...rest]);
               }

@@ -38,7 +38,7 @@ const lang: Partial<Lang> = {
     'Questo modello verrà utilizzato durante la creazione di nuove note dalle schede Kanban.',
   'No template': 'Nessun modello',
   'Note folder': 'Cartella delle note',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
     'Le note create dalle schede Kanban verranno inserite in questa cartella. Se vuota, verranno inserite nella posizione predefinita del vault.',
   'Default folder': 'Cartella predefinita',
   'Maximum number of archived cards': 'Numero massimo di schede archiviate',

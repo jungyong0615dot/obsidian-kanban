@@ -17,6 +17,7 @@ export interface LaneData {
   shouldMarkItemsComplete?: boolean;
   title: string;
   maxItems?: number;
+  archive: Item[];
   dom?: HTMLDivElement;
   forceEditMode?: boolean;
   sorted?: LaneSort | string;

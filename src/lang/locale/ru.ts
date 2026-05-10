@@ -59,7 +59,7 @@ const lang: Partial<Lang> = {
     'Этот шаблон будет использоваться при создании новых заметок из карточек Kanban.',
   'No template': 'Нет шаблона',
   'Note folder': 'Директория заметок',
-  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.':
+  'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the same folder as the current Kanban board.':
     'В эту папку будут помещены заметки, созданные из карточек Kanban. Если поле пустое, они будут помещены в папку по умолчанию для этого хранилища.',
   'Default folder': 'Директория по умолчанию',
   'List width': 'Ширина списка',

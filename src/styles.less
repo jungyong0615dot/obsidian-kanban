@@ -723,6 +723,51 @@ button.kanban-plugin__new-item-button {
   margin-block-start: 1px;
 }
 
+.kanban-plugin__lane-archive {
+  margin: 8px;
+  margin-block-start: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--input-radius);
+  background: var(--background-secondary);
+}
+
+.kanban-plugin__lane-archive-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+.kanban-plugin__lane-archive-summary::marker,
+.kanban-plugin__lane-archive-summary::-webkit-details-marker {
+  color: var(--text-faint);
+}
+
+.kanban-plugin__lane-archive-count {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.kanban-plugin__lane-archive-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 6px 6px;
+}
+
+.kanban-plugin__archive-item-wrapper {
+  opacity: 0.9;
+}
+
+.kanban-plugin__archive-item .kanban-plugin__item-title-wrapper {
+  padding-inline-start: 10px;
+}
+
 .kanban-plugin__meta-value,
 .kanban-plugin__markdown-preview-wrapper {
   white-space: pre-wrap;
