@@ -5,10 +5,10 @@ import { useEffect, useState } from 'preact/compat';
 import { KanbanView } from './KanbanView';
 import { KanbanSettings, SettingRetrievers } from './Settings';
 import { getDefaultDateFormat, getDefaultTimeFormat } from './components/helpers';
-import { Board, BoardTemplate, Item } from './components/types';
+import { isDoneItem, isItem, isSection, normalizeLaneSections } from './components/nestedSections';
+import { Board, BoardTemplate, Item, LaneChild } from './components/types';
 import { ListFormat } from './parsers/List';
 import { BaseFormat, frontmatterKey, shouldRefreshBoard } from './parsers/common';
-import { getTaskStatusDone } from './parsers/helpers/inlineMetadata';
 import { defaultDateTrigger, defaultMetadataPosition, defaultTimeTrigger } from './settingHelpers';
 
 export class StateManager {
@@ -386,23 +386,57 @@ export class StateManager {
 
     const lanes = board.children.map((lane) => {
       const laneArchived: Item[] = [];
-      return update(lane, {
-        children: {
-          $set: lane.children.filter((item) => {
-            const isComplete = item.data.checked && item.data.checkChar === getTaskStatusDone();
-            if (lane.data.shouldMarkItemsComplete || isComplete) {
+      const children = lane.children.reduce<LaneChild[]>((children, child) => {
+        if (isItem(child)) {
+          if (lane.data.shouldMarkItemsComplete || isDoneItem(child)) {
+            laneArchived.push(child);
+          } else {
+            children.push(child);
+          }
+
+          return children;
+        }
+
+        if (isSection(child)) {
+          const remainingItems = child.children.filter((item) => {
+            if (
+              lane.data.shouldMarkItemsComplete ||
+              child.data.shouldMarkItemsComplete ||
+              isDoneItem(item)
+            ) {
               laneArchived.push(item);
+              return false;
             }
 
-            return !isComplete && !lane.data.shouldMarkItemsComplete;
-          }),
-        },
-        data: {
-          archive: {
-            $push: shouldAppendArchiveDate ? laneArchived.map((item) => appendArchiveDate(item)) : laneArchived,
+            return true;
+          });
+
+          children.push(
+            update(child, {
+              children: {
+                $set: remainingItems,
+              },
+            })
+          );
+        }
+
+        return children;
+      }, []);
+
+      return normalizeLaneSections(
+        update(lane, {
+          children: {
+            $set: children,
           },
-        },
-      });
+          data: {
+            archive: {
+              $push: shouldAppendArchiveDate
+                ? laneArchived.map((item) => appendArchiveDate(item))
+                : laneArchived,
+            },
+          },
+        })
+      );
     });
 
     try {

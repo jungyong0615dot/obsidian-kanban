@@ -11,6 +11,7 @@ import { GripIcon } from '../Icon/GripIcon';
 import { Icon } from '../Icon/Icon';
 import { KanbanContext } from '../context';
 import { c } from '../helpers';
+import { getLaneItemCount } from '../nestedSections';
 import { EditState, EditingState, Lane, isEditing } from '../types';
 import { ConfirmAction, useSettingsMenu } from './LaneMenu';
 import { LaneSettings } from './LaneSettings';
@@ -153,7 +154,7 @@ export const LaneHeader = memo(function LaneHeader({
 
         <LaneLimitCounter
           editState={editState}
-          itemCount={lane.children.length}
+          itemCount={getLaneItemCount(lane)}
           maxItems={lane.data.maxItems}
         />
 

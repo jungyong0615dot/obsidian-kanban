@@ -13,6 +13,7 @@ import { useItemMenu } from '../Item/ItemMenu';
 import { MarkdownRenderer } from '../MarkdownRenderer/MarkdownRenderer';
 import { KanbanContext, SearchContext } from '../context';
 import { c, useGetDateColorFn } from '../helpers';
+import { getLaneRootInsertIndex, normalizeBoardLanes } from '../nestedSections';
 import { EditState, Item, Lane, isEditing } from '../types';
 import { TableItem } from './types';
 
@@ -49,11 +50,18 @@ export const DateCell = memo(function DateCell({
 });
 
 export const ItemCell = memo(
-  function ItemCell({ item, lane, path }: { item: Item; lane: Lane; path: number[] }) {
+  function ItemCell({
+    item,
+    path,
+    shouldMarkItemsComplete,
+  }: {
+    item: Item;
+    path: number[];
+    shouldMarkItemsComplete: boolean;
+  }) {
     const { stateManager, boardModifiers } = useContext(KanbanContext);
     const search = useContext(SearchContext);
     const [editState, setEditState] = useState<EditState>(null);
-    const shouldMarkItemsComplete = !!lane.data.shouldMarkItemsComplete;
 
     const showItemMenu = useItemMenu({
       boardModifiers,
@@ -113,7 +121,7 @@ export const ItemCell = memo(
   },
   (prev, next) => {
     return (
-      prev.lane.data.shouldMarkItemsComplete === next.lane.data.shouldMarkItemsComplete &&
+      prev.shouldMarkItemsComplete === next.shouldMarkItemsComplete &&
       isEqual(prev.item, next.item) &&
       isEqual(prev.path, next.path)
     );
@@ -141,7 +149,10 @@ export const LaneCell = memo(function LaneCell({ lane, path }: { lane: Lane; pat
                   if (lane === l) return;
                   stateManager.setState((boardData) => {
                     const target = boardData.children[i];
-                    return moveEntity(boardData, path, [i, target.children.length]);
+                    return normalizeBoardLanes(
+                      moveEntity(boardData, path, [i, getLaneRootInsertIndex(target)]),
+                      [path[0], i]
+                    );
                   });
                 })
             );

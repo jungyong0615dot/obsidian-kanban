@@ -184,10 +184,16 @@ export const DraggableItem = memo(function DraggableItem(props: DraggableItemPro
 interface ItemsProps {
   isStatic?: boolean;
   items: Item[];
+  itemIndexes?: number[];
   shouldMarkItemsComplete: boolean;
 }
 
-export const Items = memo(function Items({ isStatic, items, shouldMarkItemsComplete }: ItemsProps) {
+export const Items = memo(function Items({
+  isStatic,
+  items,
+  itemIndexes,
+  shouldMarkItemsComplete,
+}: ItemsProps) {
   const search = useContext(SearchContext);
   const { view } = useContext(KanbanContext);
   const boardView = view.useViewState(frontmatterKey);
@@ -199,7 +205,7 @@ export const Items = memo(function Items({ isStatic, items, shouldMarkItemsCompl
           <DraggableItem
             key={boardView + item.id}
             item={item}
-            itemIndex={i}
+            itemIndex={itemIndexes?.[i] ?? i}
             shouldMarkItemsComplete={shouldMarkItemsComplete}
             isStatic={isStatic}
           />

@@ -13,6 +13,7 @@ import {
 } from 'src/parsers/helpers/inlineMetadata';
 
 import { SearchContextProps } from './context';
+import { getLaneItems } from './nestedSections';
 import { Board, DataKey, DateColor, Item, Lane, PageData, TagColor } from './types';
 
 export const baseClassName = 'kanban-plugin';
@@ -370,7 +371,7 @@ export function useSearchValue(
     if (query) {
       board.children.forEach((lane) => {
         let laneMatched = false;
-        [...lane.children, ...lane.data.archive].forEach((item) => {
+        [...getLaneItems(lane), ...lane.data.archive].forEach((item) => {
           if (item.data.titleSearch.includes(query)) {
             laneMatched = true;
             items.add(item);

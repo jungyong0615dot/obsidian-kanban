@@ -9,6 +9,12 @@ import { lableToName } from 'src/parsers/helpers/inlineMetadata';
 import { anyToString } from '../Item/MetadataTable';
 import { KanbanContext } from '../context';
 import { c, generateInstanceId } from '../helpers';
+import {
+  getLaneItemCount,
+  getLaneItems,
+  normalizeLaneSections,
+  sortLaneItems,
+} from '../nestedSections';
 import { EditState, Lane, LaneSort, LaneTemplate } from '../types';
 
 export type LaneAction = 'delete' | 'archive' | 'archive-items' | null;
@@ -38,12 +44,12 @@ export interface ConfirmActionProps {
 export function ConfirmAction({ action, cancel, onAction, lane }: ConfirmActionProps) {
   useEffect(() => {
     // Immediately execute action if lane is empty
-    if (action && lane.children.length === 0) {
+    if (action && getLaneItemCount(lane) === 0) {
       onAction();
     }
-  }, [action, lane.children.length]);
+  }, [action, lane.children]);
 
-  if (!action || (action && lane.children.length === 0)) return null;
+  if (!action || (action && getLaneItemCount(lane) === 0)) return null;
 
   return (
     <div className={c('action-confirm-wrapper')}>
@@ -75,7 +81,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
     let canSortDate = false;
     let canSortTags = false;
 
-    lane.children.forEach((item) => {
+    getLaneItems(lane).forEach((item) => {
       const taskData = item.data.metadata.inlineMetadata;
       if (taskData) {
         taskData.forEach((m) => {
@@ -106,17 +112,20 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
         i.setIcon('arrow-left-to-line')
           .setTitle(t('Insert list before'))
           .onClick(() =>
-            boardModifiers.insertLane(path, {
-              ...LaneTemplate,
-              id: generateInstanceId(),
-              children: [],
-              data: {
-                archive: [],
-                title: '',
-                shouldMarkItemsComplete: false,
-                forceEditMode: true,
-              },
-            })
+            boardModifiers.insertLane(
+              path,
+              normalizeLaneSections({
+                ...LaneTemplate,
+                id: generateInstanceId(),
+                children: [],
+                data: {
+                  archive: [],
+                  title: '',
+                  shouldMarkItemsComplete: false,
+                  forceEditMode: true,
+                },
+              })
+            )
           );
       })
       .addItem((i) => {
@@ -127,17 +136,20 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
 
             newPath[newPath.length - 1] = newPath[newPath.length - 1] + 1;
 
-            boardModifiers.insertLane(newPath, {
-              ...LaneTemplate,
-              id: generateInstanceId(),
-              children: [],
-              data: {
-                archive: [],
-                title: '',
-                shouldMarkItemsComplete: false,
-                forceEditMode: true,
-              },
-            });
+            boardModifiers.insertLane(
+              newPath,
+              normalizeLaneSections({
+                ...LaneTemplate,
+                id: generateInstanceId(),
+                children: [],
+                data: {
+                  archive: [],
+                  title: '',
+                  shouldMarkItemsComplete: false,
+                  forceEditMode: true,
+                },
+              })
+            );
           });
       })
       .addSeparator()
@@ -161,10 +173,9 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
           .setIcon('arrow-down-up')
           .setTitle(t('Sort by card text'))
           .onClick(() => {
-            const children = lane.children.slice();
             const isAsc = lane.data.sorted === LaneSort.TitleAsc;
 
-            children.sort((a, b) => {
+            const nextLane = sortLaneItems(lane, (a, b) => {
               if (isAsc) {
                 return b.data.title.localeCompare(a.data.title);
               }
@@ -174,10 +185,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
 
             boardModifiers.updateLane(
               path,
-              update(lane, {
-                children: {
-                  $set: children,
-                },
+              update(nextLane, {
                 data: {
                   sorted: {
                     $set:
@@ -197,10 +205,9 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
             .setIcon('arrow-down-up')
             .setTitle(t('Sort by date'))
             .onClick(() => {
-              const children = lane.children.slice();
               const mod = lane.data.sorted === LaneSort.DateAsc ? -1 : 1;
 
-              children.sort((a, b) => {
+              const nextLane = sortLaneItems(lane, (a, b) => {
                 const aDate: moment.Moment | undefined =
                   a.data.metadata.time || a.data.metadata.date;
                 const bDate: moment.Moment | undefined =
@@ -215,10 +222,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
 
               boardModifiers.updateLane(
                 path,
-                update(lane, {
-                  children: {
-                    $set: children,
-                  },
+                update(nextLane, {
                   data: {
                     sorted: {
                       $set:
@@ -238,10 +242,9 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
             .setTitle(t('Sort by tags'))
             .onClick(() => {
               const tagSortOrder = stateManager.getSetting('tag-sort');
-              const children = lane.children.slice();
               const desc = lane.data.sorted === LaneSort.TagsAsc ? true : false;
 
-              children.sort((a, b) => {
+              const nextLane = sortLaneItems(lane, (a, b) => {
                 const tagsA = a.data.metadata.tags;
                 const tagsB = b.data.metadata.tags;
 
@@ -266,10 +269,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
 
               boardModifiers.updateLane(
                 path,
-                update(lane, {
-                  children: {
-                    $set: children,
-                  },
+                update(nextLane, {
                   data: {
                     sorted: {
                       $set:
@@ -288,10 +288,9 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
             i.setIcon('arrow-down-up')
               .setTitle(t('Sort by') + ' ' + lableToName(k).toLocaleLowerCase())
               .onClick(() => {
-                const children = lane.children.slice();
                 const desc = lane.data.sorted === k + '-asc' ? true : false;
 
-                children.sort((a, b) => {
+                const nextLane = sortLaneItems(lane, (a, b) => {
                   const valA = a.data.metadata.inlineMetadata?.find((m) => m.key === k);
                   const valB = b.data.metadata.inlineMetadata?.find((m) => m.key === k);
 
@@ -313,10 +312,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
 
                 boardModifiers.updateLane(
                   path,
-                  update(lane, {
-                    children: {
-                      $set: children,
-                    },
+                  update(nextLane, {
                     data: {
                       sorted: {
                         $set: lane.data.sorted === k + '-asc' ? k + '-desc' : k + '-asc',

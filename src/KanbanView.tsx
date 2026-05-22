@@ -16,6 +16,7 @@ import { KanbanFormat, KanbanSettings, KanbanViewSettings, SettingsModal } from 
 import { Kanban } from './components/Kanban';
 import { BasicMarkdownRenderer } from './components/MarkdownRenderer/MarkdownRenderer';
 import { c } from './components/helpers';
+import { getLaneItems } from './components/nestedSections';
 import { Board } from './components/types';
 import { getParentWindow } from './dnd/util/getWindow';
 import { gotoNextDailyNote, gotoPrevDailyNote, hasFrontmatterKeyRaw } from './helpers';
@@ -78,7 +79,7 @@ export class KanbanView extends TextFileView implements HoverParent {
 
   async prerender(board: Board) {
     board.children.forEach((lane) => {
-      lane.children.forEach((item) => {
+      getLaneItems(lane).forEach((item) => {
         if (this.previewCache.has(item.id)) return;
 
         this.previewQueue.add(async () => {
@@ -102,7 +103,7 @@ export class KanbanView extends TextFileView implements HoverParent {
     const seenKeys = new Set<string>();
     board.children.forEach((lane) => {
       seenKeys.add(lane.id);
-      lane.children.forEach((item) => {
+      getLaneItems(lane).forEach((item) => {
         seenKeys.add(item.id);
       });
     });

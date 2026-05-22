@@ -7,6 +7,7 @@ import { parseLaneTitle } from 'src/parsers/helpers/parser';
 import { MarkdownEditor, allowNewLine } from '../Editor/MarkdownEditor';
 import { KanbanContext } from '../context';
 import { c, generateInstanceId } from '../helpers';
+import { normalizeLaneSections } from '../nestedSections';
 import { LaneTemplate } from '../types';
 
 interface LaneFormProps {
@@ -30,16 +31,18 @@ export function LaneForm({ onNewLane, closeLaneForm }: LaneFormProps) {
 
   const createLane = useCallback(
     (cm: EditorView, title: string) => {
-      boardModifiers.addLane({
-        ...LaneTemplate,
-        id: generateInstanceId(),
-        children: [],
-        data: {
-          archive: [],
-          ...parseLaneTitle(title),
-          shouldMarkItemsComplete: shouldMarkAsComplete,
-        },
-      });
+      boardModifiers.addLane(
+        normalizeLaneSections({
+          ...LaneTemplate,
+          id: generateInstanceId(),
+          children: [],
+          data: {
+            archive: [],
+            ...parseLaneTitle(title),
+            shouldMarkItemsComplete: shouldMarkAsComplete,
+          },
+        })
+      );
 
       cm.dispatch({
         changes: {

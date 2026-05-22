@@ -15,6 +15,12 @@ import {
 } from 'src/dnd/util/data';
 
 import { generateInstanceId } from '../components/helpers';
+import {
+  getLaneItems,
+  isSection,
+  normalizeBoardLane,
+  normalizeLaneSections,
+} from '../components/nestedSections';
 import { Board, DataTypes, Item, Lane } from '../components/types';
 
 export interface BoardModifiers {
@@ -54,40 +60,59 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
     return stateManager.updateItemContent(item, titleRaw);
   };
 
+  const normalizeLaneAtPath = (board: Board, path: Path) => {
+    if (!path.length) {
+      return board;
+    }
+
+    return normalizeBoardLane(board, path[0]);
+  };
+
   return {
     appendItems: (path: Path, items: Item[]) => {
-      stateManager.setState((boardData) => appendEntities(boardData, path, items));
+      stateManager.setState((boardData) => {
+        return normalizeLaneAtPath(appendEntities(boardData, path, items), path);
+      });
     },
 
     prependItems: (path: Path, items: Item[]) => {
-      stateManager.setState((boardData) => prependEntities(boardData, path, items));
+      stateManager.setState((boardData) => {
+        return normalizeLaneAtPath(prependEntities(boardData, path, items), path);
+      });
     },
 
     insertItems: (path: Path, items: Item[]) => {
-      stateManager.setState((boardData) => insertEntity(boardData, path, items));
+      stateManager.setState((boardData) => {
+        return normalizeLaneAtPath(insertEntity(boardData, path, items), path);
+      });
     },
 
     replaceItem: (path: Path, items: Item[]) => {
       stateManager.setState((boardData) =>
-        insertEntity(removeEntity(boardData, path), path, items)
+        normalizeLaneAtPath(insertEntity(removeEntity(boardData, path), path, items), path)
       );
     },
 
     splitItem: (path: Path, items: Item[]) => {
       stateManager.setState((boardData) => {
-        return insertEntity(removeEntity(boardData, path), path, items);
+        return normalizeLaneAtPath(insertEntity(removeEntity(boardData, path), path, items), path);
       });
     },
 
     moveItemToTop: (path: Path) => {
-      stateManager.setState((boardData) => moveEntity(boardData, path, [path[0], 0]));
+      stateManager.setState((boardData) =>
+        normalizeLaneAtPath(moveEntity(boardData, path, [path[0], 0]), path)
+      );
     },
 
     moveItemToBottom: (path: Path) => {
       stateManager.setState((boardData) => {
         const laneIndex = path[0];
         const lane = boardData.children[laneIndex];
-        return moveEntity(boardData, path, [laneIndex, lane.children.length]);
+        return normalizeLaneAtPath(
+          moveEntity(boardData, path, [laneIndex, lane.children.length]),
+          path
+        );
       });
     },
 
@@ -101,7 +126,7 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
         };
 
         view.setViewState('list-collapse', undefined, op);
-        return update<Board>(appendEntities(boardData, [], [lane]), {
+        return update<Board>(appendEntities(boardData, [], [normalizeLaneSections(lane)]), {
           data: { settings: { 'list-collapse': { $set: op(collapseState) } } },
         });
       });
@@ -118,7 +143,7 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
 
         view.setViewState('list-collapse', undefined, op);
 
-        return update<Board>(insertEntity(boardData, path, [lane]), {
+        return update<Board>(insertEntity(boardData, path, [normalizeLaneSections(lane)]), {
           data: { settings: { 'list-collapse': { $set: op(collapseState) } } },
         });
       });
@@ -129,7 +154,7 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
         updateParentEntity(boardData, path, {
           children: {
             [path[path.length - 1]]: {
-              $set: lane,
+              $set: normalizeLaneSections(lane),
             },
           },
         })
@@ -139,7 +164,7 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
     archiveLane: (path: Path) => {
       stateManager.setState((boardData) => {
         const lane = getEntityFromPath(boardData, path);
-        const items = [...lane.children, ...(lane.data.archive || [])];
+        const items = [...getLaneItems(lane), ...(lane.data.archive || [])];
 
         try {
           const collapseState = view.getViewState('list-collapse');
@@ -170,21 +195,31 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
     archiveLaneItems: (path: Path) => {
       stateManager.setState((boardData) => {
         const lane = getEntityFromPath(boardData, path);
-        const items = lane.children;
-
-        try {
-          return updateEntity(boardData, path, {
+        const items = getLaneItems(lane);
+        const emptySections = lane.children.filter(isSection).map((section) =>
+          update(section, {
             children: {
               $set: [],
             },
-            data: {
-              archive: {
-                $push: stateManager.getSetting('archive-with-date')
-                  ? items.map(appendArchiveDate)
-                  : items,
+          })
+        );
+
+        try {
+          return normalizeLaneAtPath(
+            updateEntity(boardData, path, {
+              children: {
+                $set: emptySections,
               },
-            },
-          });
+              data: {
+                archive: {
+                  $push: stateManager.getSetting('archive-with-date')
+                    ? items.map(appendArchiveDate)
+                    : items,
+                },
+              },
+            }),
+            path
+          );
         } catch (e) {
           stateManager.setError(e);
           return boardData;
@@ -210,19 +245,22 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
           });
         }
 
-        return removeEntity(boardData, path);
+        return normalizeLaneAtPath(removeEntity(boardData, path), path);
       });
     },
 
     updateItem: (path: Path, item: Item) => {
       stateManager.setState((boardData) => {
-        return updateParentEntity(boardData, path, {
-          children: {
-            [path[path.length - 1]]: {
-              $set: item,
+        return normalizeLaneAtPath(
+          updateParentEntity(boardData, path, {
+            children: {
+              [path[path.length - 1]]: {
+                $set: item,
+              },
             },
-          },
-        });
+          }),
+          path
+        );
       });
     },
 
@@ -230,7 +268,7 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
       stateManager.setState((boardData) => {
         const item = getEntityFromPath(boardData, path);
         try {
-          const lanePath = path.slice(0, -1);
+          const lanePath = [path[0]];
           const nextBoard = removeEntity(boardData, path);
 
           return updateEntity(nextBoard, lanePath, {
@@ -267,12 +305,15 @@ export function getBoardModifiers(view: KanbanView, stateManager: StateManager):
           };
           view.setViewState('list-collapse', undefined, op);
 
-          return update<Board>(insertEntity(boardData, path, [entityWithNewID]), {
-            data: { settings: { 'list-collapse': { $set: op(collapseState) } } },
-          });
+          return update<Board>(
+            insertEntity(boardData, path, [normalizeLaneSections(entityWithNewID as Lane)]),
+            {
+              data: { settings: { 'list-collapse': { $set: op(collapseState) } } },
+            }
+          );
         }
 
-        return insertEntity(boardData, path, [entityWithNewID]);
+        return normalizeLaneAtPath(insertEntity(boardData, path, [entityWithNewID]), path);
       });
     },
   };

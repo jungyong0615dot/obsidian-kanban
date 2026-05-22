@@ -7,6 +7,7 @@ export interface TableItem {
   lane: Lane;
   path: Path;
   stateManager: StateManager;
+  shouldMarkItemsComplete: boolean;
 }
 
 export interface TableData {

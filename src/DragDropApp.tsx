@@ -7,6 +7,7 @@ import { DraggableItem } from './components/Item/Item';
 import { DraggableLane } from './components/Lane/Lane';
 import { KanbanContext } from './components/context';
 import { c, maybeCompleteForMove } from './components/helpers';
+import { normalizeBoardLanes } from './components/nestedSections';
 import { Board, DataTypes, Item, Lane } from './components/types';
 import { DndContext } from './dnd/components/DndContext';
 import { DragOverlay } from './dnd/components/DragOverlay';
@@ -49,6 +50,15 @@ export function DragDropApp({ win, plugin }: { win: Window; plugin: KanbanPlugin
         const data = dragEntity.getData();
         const stateManager = plugin.getStateManagerFromViewID(data.viewId, data.win);
         const dropPath = dropEntity.getPath();
+        const dropEntityData = dropEntity.getData();
+        const inDropArea =
+          dropEntityData.acceptsSort && !dropEntityData.acceptsSort.includes(DataTypes.Item);
+
+        if (inDropArea) {
+          const dropTarget = getEntityFromPath(stateManager.state, dropPath);
+          dropPath.push(dropEntityData.type === DataTypes.Section ? dropTarget.children.length : 0);
+        }
+
         const destinationParent = getEntityFromPath(stateManager.state, dropPath.slice(0, -1));
 
         try {
@@ -81,7 +91,9 @@ export function DragDropApp({ win, plugin }: { win: Window; plugin: KanbanPlugin
             });
           });
 
-          return stateManager.setState((board) => insertEntity(board, dropPath, items));
+          return stateManager.setState((board) =>
+            normalizeBoardLanes(insertEntity(board, dropPath, items), [dropPath[0]])
+          );
         } catch (e) {
           stateManager.setError(e);
           console.error(e);
@@ -106,7 +118,8 @@ export function DragDropApp({ win, plugin }: { win: Window; plugin: KanbanPlugin
         const stateManager = plugin.stateManagers.get(view.file);
 
         if (inDropArea) {
-          dropPath.push(0);
+          const dropTarget = getEntityFromPath(stateManager.state, dropPath);
+          dropPath.push(dropEntityData.type === DataTypes.Section ? dropTarget.children.length : 0);
         }
 
         return stateManager.setState((board) => {
@@ -171,14 +184,17 @@ export function DragDropApp({ win, plugin }: { win: Window; plugin: KanbanPlugin
           const destinationParent = getEntityFromPath(board, destinationParentPath);
 
           if (destinationParent?.data?.sorted !== undefined) {
-            return updateEntity(newBoard, destinationParentPath, {
-              data: {
-                $unset: ['sorted'],
-              },
-            });
+            return normalizeBoardLanes(
+              updateEntity(newBoard, destinationParentPath, {
+                data: {
+                  $unset: ['sorted'],
+                },
+              }),
+              [dragPath[0], dropPath[0]]
+            );
           }
 
-          return newBoard;
+          return normalizeBoardLanes(newBoard, [dragPath[0], dropPath[0]]);
         });
       }
 
@@ -232,10 +248,14 @@ export function DragDropApp({ win, plugin }: { win: Window; plugin: KanbanPlugin
             destinationView.setViewState('list-collapse', undefined, op);
 
             return update<Board>(insertEntity(destinationBoard, dropPath, toInsert), {
-              data: { settings: { 'list-collapse': { $set: op(collapsedState) } } },
+              data: {
+                settings: { 'list-collapse': { $set: op(collapsedState) } },
+              },
             });
           } else {
-            return insertEntity(destinationBoard, dropPath, toInsert);
+            return normalizeBoardLanes(insertEntity(destinationBoard, dropPath, toInsert), [
+              dropPath[0],
+            ]);
           }
         });
 
@@ -252,7 +272,9 @@ export function DragDropApp({ win, plugin }: { win: Window; plugin: KanbanPlugin
             data: { settings: { 'list-collapse': { $set: op(collapsedState) } } },
           });
         } else {
-          return removeEntity(sourceBoard, dragPath, replacementEntity);
+          return normalizeBoardLanes(removeEntity(sourceBoard, dragPath, replacementEntity), [
+            dragPath[0],
+          ]);
         }
       });
     },

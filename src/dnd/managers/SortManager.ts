@@ -220,11 +220,12 @@ export class SortManager {
 
       resetDroparea();
 
-      if (
+      const canDrop =
         primaryIntersection &&
-        this.sortables.has(primaryIntersection.entityId) &&
-        primaryIntersectionId !== dragEntityId
-      ) {
+        (this.sortables.has(primaryIntersection.entityId) ||
+          primaryIntersection.getData().accepts.includes(dragEntity.getData().type));
+
+      if (canDrop && primaryIntersectionId !== dragEntityId) {
         this.dndManager.onDrop(dragEntity, primaryIntersection);
       }
 

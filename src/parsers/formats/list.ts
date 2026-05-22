@@ -7,13 +7,23 @@ import { KanbanSettings } from 'src/Settings';
 import { StateManager } from 'src/StateManager';
 import { generateInstanceId } from 'src/components/helpers';
 import {
+  createSection,
+  getLaneRootItems,
+  getLaneSections,
+  isItem,
+  isSection,
+  normalizeLaneSections,
+} from 'src/components/nestedSections';
+import {
   Board,
   BoardTemplate,
   Item,
   ItemData,
   ItemTemplate,
   Lane,
+  LaneChild,
   LaneTemplate,
+  Section,
 } from 'src/components/types';
 import { laneTitleWithMaxItems } from 'src/helpers';
 import { defaultSort } from 'src/helpers/util';
@@ -242,6 +252,10 @@ function isLaneArchiveMarker(child: Content) {
   return child.type === 'paragraph' && toString(child).trim() === laneArchiveString;
 }
 
+function isNestedSectionHeading(child: Content) {
+  return child.type === 'heading' && (child as any).depth === 3;
+}
+
 function getLaneSectionChildren(children: Content[], currentIndex: number) {
   const sectionChildren: Content[] = [];
 
@@ -255,6 +269,48 @@ function getLaneSectionChildren(children: Content[], currentIndex: number) {
   }
 
   return sectionChildren;
+}
+
+function getNestedSectionChildren(children: Content[], currentIndex: number) {
+  const sectionChildren: Content[] = [];
+
+  for (let i = currentIndex + 1, len = children.length; i < len; i++) {
+    const child = children[i];
+    if (child.type === 'heading' && (child as any).depth <= 3) {
+      break;
+    }
+
+    if (isLaneArchiveMarker(child)) {
+      break;
+    }
+
+    sectionChildren.push(child);
+  }
+
+  return sectionChildren;
+}
+
+function listToItems(stateManager: StateManager, md: string, list: List): Item[] {
+  return list.children.map((listItem) => {
+    return {
+      ...ItemTemplate,
+      id: generateInstanceId(),
+      data: listItemToItemData(stateManager, md, listItem),
+    };
+  });
+}
+
+function nestedSectionToSection(
+  stateManager: StateManager,
+  md: string,
+  heading: Content,
+  sectionChildren: Content[]
+): Section {
+  const headingBoundary = getNodeContentBoundary(heading as Parent);
+  const title = getStringFromBoundary(md, headingBoundary);
+  const list = sectionChildren.find((sectionChild) => sectionChild.type === 'list') as List;
+
+  return createSection(title, list ? listToItems(stateManager, md, list) : []);
 }
 
 export function astToUnhydratedBoard(
@@ -277,90 +333,70 @@ export function astToUnhydratedBoard(
       let list: List = null;
       let archiveList: List = null;
       let didHitArchiveMarker = false;
+      const nestedSections: Section[] = [];
 
-      sectionChildren.forEach((sectionChild) => {
+      for (let i = 0, len = sectionChildren.length; i < len; i++) {
+        const sectionChild = sectionChildren[i];
+
         if (sectionChild.type === 'paragraph') {
           const childStr = toString(sectionChild);
 
           if (childStr.startsWith('%% kanban:settings')) {
-            return;
+            continue;
           }
 
           if (childStr === t('Complete')) {
             shouldMarkItemsComplete = true;
-            return;
+            continue;
           }
+        }
+
+        if (isNestedSectionHeading(sectionChild)) {
+          const nestedChildren = getNestedSectionChildren(sectionChildren, i);
+          nestedSections.push(
+            nestedSectionToSection(stateManager, md, sectionChild, nestedChildren)
+          );
+          i += nestedChildren.length;
+          continue;
         }
 
         if (isLaneArchiveMarker(sectionChild)) {
           didHitArchiveMarker = true;
-          return;
+          continue;
         }
 
         if (sectionChild.type === 'list') {
           if (didHitArchiveMarker && !archiveList) {
             archiveList = sectionChild as List;
-            return;
+            continue;
           }
 
           if (!list) {
             list = sectionChild as List;
           }
         }
-      });
+      }
 
       if (isArchive && list) {
-        archive.push(
-          ...(list as List).children.map((listItem) => {
-            return {
-              ...ItemTemplate,
-              id: generateInstanceId(),
-              data: listItemToItemData(stateManager, md, listItem),
-            };
-          })
-        );
+        archive.push(...listToItems(stateManager, md, list));
 
         return;
       }
 
-      if (!list) {
-        lanes.push({
-          ...LaneTemplate,
-          children: [],
-          id: generateInstanceId(),
-          data: {
-            ...parseLaneTitle(title),
-            archive: [],
-            shouldMarkItemsComplete,
-          },
-        });
-      } else {
-        lanes.push({
-          ...LaneTemplate,
-          children: (list as List).children.map((listItem) => {
-            const data = listItemToItemData(stateManager, md, listItem);
-            return {
-              ...ItemTemplate,
-              id: generateInstanceId(),
-              data,
-            };
-          }),
-          id: generateInstanceId(),
-          data: {
-            ...parseLaneTitle(title),
-            archive:
-              archiveList?.children.map((listItem) => {
-                const data = listItemToItemData(stateManager, md, listItem);
-                return {
-                  ...ItemTemplate,
-                  id: generateInstanceId(),
-                  data,
-                };
-              }) || [],
-            shouldMarkItemsComplete,
-          },
-        });
-      }
+      const children: LaneChild[] = [...(list ? listToItems(stateManager, md, list) : [])];
+      children.push(...nestedSections);
+      const lane = normalizeLaneSections({
+        ...LaneTemplate,
+        children,
+        id: generateInstanceId(),
+        data: {
+          ...parseLaneTitle(title),
+          archive: archiveList ? listToItems(stateManager, md, archiveList) : [],
+          shouldMarkItemsComplete,
+        },
+      });
+
+      lanes.push(lane);
     }
   });
 
@@ -430,20 +466,36 @@ export function reparseBoard(stateManager: StateManager, board: Board) {
     return update(board, {
       children: {
         $set: board.children.map((lane) => {
-          return update(lane, {
-            children: {
-              $set: lane.children.map((item) => {
-                return updateItemContent(stateManager, item, item.data.titleRaw);
-              }),
-            },
-            data: {
-              archive: {
-                $set: lane.data.archive.map((item) => {
-                  return updateItemContent(stateManager, item, item.data.titleRaw);
+          return normalizeLaneSections(
+            update(lane, {
+              children: {
+                $set: lane.children.map((child) => {
+                  if (isItem(child)) {
+                    return updateItemContent(stateManager, child, child.data.titleRaw);
+                  }
+
+                  if (isSection(child)) {
+                    return update(child, {
+                      children: {
+                        $set: child.children.map((item) => {
+                          return updateItemContent(stateManager, item, item.data.titleRaw);
+                        }),
+                      },
+                    });
+                  }
+
+                  return child;
                 }),
               },
-            },
-          });
+              data: {
+                archive: {
+                  $set: lane.data.archive.map((item) => {
+                    return updateItemContent(stateManager, item, item.data.titleRaw);
+                  }),
+                },
+              },
+            })
+          );
         }),
       },
       data: {
@@ -476,8 +528,17 @@ function laneToMd(lane: Lane) {
     lines.push(completeString);
   }
 
-  lane.children.forEach((item) => {
+  getLaneRootItems(lane).forEach(({ item }) => {
     lines.push(itemToMd(item));
+  });
+
+  getLaneSections(lane).forEach(({ section }) => {
+    lines.push('');
+    lines.push(`### ${replaceNewLines(section.data.title)}`);
+    lines.push('');
+    section.children.forEach((item) => {
+      lines.push(itemToMd(item));
+    });
   });
 
   if (archive.length) {

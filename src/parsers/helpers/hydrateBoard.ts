@@ -1,6 +1,7 @@
 import { moment } from 'obsidian';
 import { StateManager } from 'src/StateManager';
 import { c, escapeRegExpStr, getDateColorFn } from 'src/components/helpers';
+import { getLaneItems } from 'src/components/nestedSections';
 import { Board, DataTypes, DateColor, Item, Lane } from 'src/components/types';
 import { Path } from 'src/dnd/types';
 import { getEntityFromPath } from 'src/dnd/util/data';
@@ -139,7 +140,7 @@ export function hydrateBoard(stateManager: StateManager, board: Board): Board {
   try {
     board.children.map((lane) => {
       hydrateLane(stateManager, lane);
-      lane.children.map((item) => {
+      getLaneItems(lane).map((item) => {
         return hydrateItem(stateManager, item);
       });
     });

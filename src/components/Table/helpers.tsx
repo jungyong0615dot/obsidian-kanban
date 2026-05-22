@@ -12,6 +12,7 @@ import moment from 'moment';
 import { useCallback, useContext, useMemo, useRef, useState } from 'preact/hooks';
 import { StateManager } from 'src/StateManager';
 import { c } from 'src/components/helpers';
+import { isItem, isSection } from 'src/components/nestedSections';
 import { defaultSort } from 'src/helpers/util';
 import { t } from 'src/lang/helpers';
 import { getDataviewPlugin, lableToName, taskFields } from 'src/parsers/helpers/inlineMetadata';
@@ -19,7 +20,7 @@ import { getDataviewPlugin, lableToName, taskFields } from 'src/parsers/helpers/
 import { Tags } from '../Item/ItemContent';
 import { MetadataValue, anyToString } from '../Item/MetadataTable';
 import { SearchContext } from '../context';
-import { Board, Lane } from '../types';
+import { Board, Item, Lane } from '../types';
 import { DateCell, ItemCell, LaneCell } from './Cells';
 import { TableData, TableItem } from './types';
 
@@ -63,8 +64,34 @@ export function useTableData(board: Board, stateManager: StateManager): TableDat
 
     for (let i = 0, len = lanes.length; i < len; i++) {
       const lane = lanes[i];
-      for (let j = 0, len = lane.children.length; j < len; j++) {
-        const item = lane.children[j];
+      const indexedItems = lane.children.reduce<
+        Array<{ item: Item; path: number[]; shouldMarkItemsComplete: boolean }>
+      >((indexedItems, child, childIndex) => {
+        if (isItem(child)) {
+          indexedItems.push({
+            item: child,
+            path: [i, childIndex],
+            shouldMarkItemsComplete: !!lane.data.shouldMarkItemsComplete,
+          });
+          return indexedItems;
+        }
+
+        if (isSection(child)) {
+          child.children.forEach((item, itemIndex) => {
+            indexedItems.push({
+              item,
+              path: [i, childIndex, itemIndex],
+              shouldMarkItemsComplete:
+                !!lane.data.shouldMarkItemsComplete || !!child.data.shouldMarkItemsComplete,
+            });
+          });
+        }
+
+        return indexedItems;
+      }, []);
+
+      for (let j = 0, len = indexedItems.length; j < len; j++) {
+        const { item, path, shouldMarkItemsComplete } = indexedItems[j];
         const itemMetadata = item.data.metadata;
         const itemfileMetadata = itemMetadata.fileMetadata || {};
         const fileMetaOrder = itemMetadata.fileMetadataOrder || [];
@@ -99,7 +126,7 @@ export function useTableData(board: Board, stateManager: StateManager): TableDat
           });
         }
 
-        items.push({ item, lane, path: [i, j], stateManager });
+        items.push({ item, lane, path, stateManager, shouldMarkItemsComplete });
       }
     }
 
@@ -117,8 +144,8 @@ export const baseColumns = (sizing: Record<string, number>): ColumnDef<TableItem
   columnHelper.accessor((row) => row.item.data.title, {
     id: 'card',
     cell: (info) => {
-      const { lane, item, path } = info.row.original;
-      return <ItemCell item={item} lane={lane} path={path} />;
+      const { item, path, shouldMarkItemsComplete } = info.row.original;
+      return <ItemCell item={item} path={path} shouldMarkItemsComplete={shouldMarkItemsComplete} />;
     },
     header: () => t('Card'),
     sortingFn: (a, b, id) => {

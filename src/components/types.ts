@@ -23,6 +23,12 @@ export interface LaneData {
   sorted?: LaneSort | string;
 }
 
+export interface SectionData {
+  title: string;
+  shouldMarkItemsComplete?: boolean;
+  forceEditMode?: boolean;
+}
+
 export interface DataKey {
   metadataKey: string;
   label: string;
@@ -104,7 +110,9 @@ export interface BoardData {
 }
 
 export type Item = Nestable<ItemData>;
-export type Lane = Nestable<LaneData, Item>;
+export type Section = Nestable<SectionData, Item>;
+export type LaneChild = Item | Section;
+export type Lane = Nestable<LaneData, LaneChild>;
 export type Board = Nestable<BoardData, Lane>;
 export type MetadataSetting = Nestable<DataKey>;
 export type TagColorSetting = Nestable<TagColor>;
@@ -113,6 +121,7 @@ export type DateColorSetting = Nestable<DateColor>;
 
 export const DataTypes = {
   Item: 'item',
+  Section: 'section',
   Lane: 'lane',
   Board: 'board',
   MetadataSetting: 'metadata-setting',
@@ -125,6 +134,11 @@ export const ItemTemplate = {
   accepts: [DataTypes.Item],
   type: DataTypes.Item,
   children: [] as any[],
+};
+
+export const SectionTemplate = {
+  accepts: [DataTypes.Item],
+  type: DataTypes.Section,
 };
 
 export const LaneTemplate = {
